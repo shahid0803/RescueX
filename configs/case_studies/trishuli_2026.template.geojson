@@ -1,0 +1,8 @@
+{
+  "type": "FeatureCollection",
+  "features": [],
+  "properties": {
+    "status": "REPLACE_WITH_USER_OR_TEAM_SUPPLIED_AOI",
+    "warning": "This template intentionally contains no geometry. Do not use it for discovery."
+  }
+}

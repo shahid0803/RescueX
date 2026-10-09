@@ -1,0 +1,18 @@
+dataset: kuro-siwo
+dataset_revision: "main (inspected 2026-10-03)"
+input_modalities: [sentinel-1]
+channels: 2
+patch_size: 256
+stride: 128
+normalization: training-only statistics
+augmentation: horizontal/vertical flips
+model: FloodUNet
+loss: BCE+Dice
+optimizer: Adam
+learning_rate: 0.001
+batch_size: 4
+epochs: 10
+seed: 42
+threshold: 0.5
+device: auto
+checkpoint_dir: models/flood_unet

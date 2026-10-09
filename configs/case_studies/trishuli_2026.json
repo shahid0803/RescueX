@@ -1,0 +1,10 @@
+{
+  "case_study": "trishuli_2026",
+  "event_date": "2026-08-26",
+  "event_date_source": "Multimodal AI Hackathon 2026 — Track B; case study: August 2026 Trishuli flood",
+  "aoi_source": "USER_SUPPLIED",
+  "aoi_path": null,
+  "aoi_status": "MISSING_USER_INPUT",
+  "cdse_credentials": "ENVIRONMENT_ONLY",
+  "validation_data_policy": "EMSR927_VALIDATION_ONLY"
+}
