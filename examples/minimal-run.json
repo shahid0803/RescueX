@@ -1,0 +1,12 @@
+{
+  "aoi": {"type": "Polygon", "coordinates": [[[0,0],[2,0],[2,2],[0,2],[0,0]]]},
+  "event_date": "2026-08-15",
+  "flood_zones": [{"type":"Polygon","coordinates":[[[0.9,-0.1],[1.1,-0.1],[1.1,1.1],[0.9,1.1],[0.9,-0.1]]]}],
+  "roads": [
+    {"id":"r-main","start":"s1","end":"town","length_m":1000,"geometry":[{"id":"a","x":0,"y":0},{"id":"b","x":1,"y":0}]},
+    {"id":"r-alt","start":"s1","end":"town","length_m":1400,"geometry":[{"id":"c","x":0,"y":1},{"id":"d","x":1,"y":1}]}
+  ],
+  "settlements": [{"id":"s1","x":0,"y":0}],
+  "destinations": [{"id":"town","x":1,"y":0}],
+  "source_manifest": {"osm_snapshot_date":"2026-08-01","satellite_source":"caller-provided"}
+}

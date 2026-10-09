@@ -1,0 +1,58 @@
+{
+  "schema_version": "1",
+  "sources": [
+    {
+      "id": "sentinel-1",
+      "name": "Copernicus Sentinel-1",
+      "category": "satellite",
+      "allowed_in": ["production"],
+      "required_metadata": ["product_id", "acquired_at", "orbit", "processing_level", "crs", "sha256"],
+      "notes": "Prefer identical orbit tracks for before/after comparisons."
+    },
+    {
+      "id": "sentinel-2",
+      "name": "Copernicus Sentinel-2",
+      "category": "satellite",
+      "allowed_in": ["production"],
+      "required_metadata": ["product_id", "acquired_at", "processing_level", "crs", "sha256"],
+      "notes": "Cloud-aware optical observation."
+    },
+    {
+      "id": "copernicus-dem",
+      "name": "Copernicus WorldDEM-30",
+      "category": "elevation",
+      "allowed_in": ["production"],
+      "required_metadata": ["tile_id", "version", "crs", "sha256"]
+    },
+    {
+      "id": "osm-pre-event",
+      "name": "OpenStreetMap pre-event snapshot",
+      "category": "mapping",
+      "allowed_in": ["production"],
+      "required_metadata": ["snapshot_date", "event_date", "extract_source", "sha256"],
+      "notes": "snapshot_date must be earlier than event_date."
+    },
+    {
+      "id": "kuro-siwo",
+      "name": "Kuro Siwo",
+      "category": "training",
+      "allowed_in": ["training"],
+      "required_metadata": ["version", "license", "citation", "sha256"]
+    },
+    {
+      "id": "sen1floods11",
+      "name": "Sen1Floods11",
+      "category": "training",
+      "allowed_in": ["training"],
+      "required_metadata": ["version", "license", "citation", "sha256"]
+    },
+    {
+      "id": "copernicus-emsr927",
+      "name": "Copernicus EMSR927 reference maps",
+      "category": "validation",
+      "allowed_in": ["validation"],
+      "required_metadata": ["reference_id", "retrieved_at", "sha256"],
+      "notes": "Never a production, training, preprocessing, prompt, or retrieval input."
+    }
+  ]
+}

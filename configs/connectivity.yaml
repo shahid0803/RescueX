@@ -1,0 +1,13 @@
+network:
+  road_classes: []
+  snap_tolerance_m: 25
+  settlement_access_tolerance_m: 250
+  destination_access_tolerance_m: 250
+buffer:
+  aoi_expansion_m: 1000
+connectivity:
+  use_bridge_blocking: true
+  calculate_route_distance: true
+  access_degraded:
+    enabled: false
+    threshold_percent: 50

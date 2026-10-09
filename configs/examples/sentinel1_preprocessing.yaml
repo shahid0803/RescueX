@@ -1,0 +1,17 @@
+scene_role: before
+aoi_reference: examples/aoi.geojson
+target_crs: auto
+target_resolution: null
+clip_to_aoi: true
+output_root: data/processed/satellite/sentinel-1/before
+sentinel1:
+  backscatter_representation: source_calibrated
+  terrain_correction: false
+  speckle_filter:
+    enabled: false
+sentinel2:
+  bands: [B02, B03, B04, B08]
+  cloud_mask: true
+  scl_classes_to_mask: [1, 3, 7, 8, 9, 10, 11]
+nodata_value: -9999
+resampling: bilinear

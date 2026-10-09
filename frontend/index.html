@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RescueX dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root { color-scheme: dark; --bg:#08111f; --card:#132238; --line:#2e4768; --muted:#9eb1cc; --accent:#42a5f5 }
+    * { box-sizing:border-box } body { margin:0; background:var(--bg); color:#eaf2ff; font:15px system-ui,sans-serif }
+    main { max-width:1200px; margin:auto; padding:24px } .grid { display:grid; grid-template-columns:360px 1fr; gap:18px }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px }
+    textarea,input,select { width:100%; margin:6px 0 14px; padding:10px; color:#eaf2ff; background:#091525; border:1px solid var(--line); border-radius:6px }
+    button { background:var(--accent); color:#06101d; border:0; border-radius:6px; padding:10px 16px; font-weight:700; cursor:pointer }
+    #map { min-height:520px; border-radius:8px } pre { white-space:pre-wrap; overflow:auto; max-height:420px }
+    .muted { color:var(--muted) } .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#25415e; margin:3px }
+    @media (max-width:800px) { .grid { grid-template-columns:1fr } #map { min-height:360px } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>RescueX</h1>
+  <p class="muted">Satellite-powered flood damage and connectivity intelligence</p>
+  <div class="grid">
+    <section>
+      <div class="card">
+        <h2>Start analysis</h2>
+        <label>Execution mode</label>
+        <select id="mode"><option value="FIXTURE">Development fixture</option><option value="REAL">Real data</option></select>
+        <label>Event date</label><input id="date" type="date" value="2026-08-15">
+        <label>AOI and flood-zone fixture (GeoJSON geometry)</label>
+        <textarea id="zone">{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}</textarea>
+        <button id="run">Start processing</button>
+        <p id="status" class="muted">No run started.</p>
+      </div>
+      <div class="card"><h2>Run status</h2><div id="steps"></div></div>
+      <div class="card"><h2>Situation report</h2><pre id="report">Report appears after a run.</pre></div>
+    </section>
+    <section>
+      <div class="card"><h2>Map layers</h2><div id="map"></div><p id="classification" class="muted"></p></div>
+      <div class="card"><h2>Structured results</h2><pre id="results">No results yet.</pre></div>
+    </section>
+  </div>
+  <footer class="muted">Contains modified Copernicus Sentinel data 2026. © OpenStreetMap contributors.</footer>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([0.5, 0.5], 8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap contributors'}).addTo(map);
+let layers = L.layerGroup().addTo(map);
+const status = document.getElementById('status');
+document.getElementById('run').onclick = async () => {
+  status.textContent = 'Submitting...'; document.getElementById('steps').textContent = '';
+  try {
+    const zone = JSON.parse(document.getElementById('zone').value);
+    const body = {aoi: zone, event_date: document.getElementById('date').value, flood_zones:[zone],
+      buildings:[], roads:[], bridges:[], settlements:[], destinations:[],
+      execution_mode: document.getElementById('mode').value,
+      source_manifest:{execution_mode:document.getElementById('mode').value}};
+    const response = await fetch('/api/pipeline/runs', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const run = await response.json(); if (!response.ok) throw new Error(run.detail || 'request failed');
+    status.innerHTML = `<span class="badge">${run.status}</span> <span class="badge">${run.execution_mode}</span> ${run.current_step}`;
+    document.getElementById('steps').innerHTML = run.history.map(x => `<div class="badge">${x.status} · ${Math.round(x.progress*100)}%</div>`).join('');
+    document.getElementById('results').textContent = JSON.stringify(run.results || run.errors, null, 2);
+    const report = await fetch(`/api/pipeline/runs/${run.run_id}/report`).then(x=>x.json());
+    document.getElementById('report').textContent = report.report;
+    const mapData = await fetch(`/api/pipeline/runs/${run.run_id}/layers`).then(x=>x.json());
+    document.getElementById('classification').textContent = mapData.classification;
+    layers.clearLayers();
+    if (mapData.layers.flood_zones) {
+      const geo = L.geoJSON(mapData.layers.flood_zones, {style:{color:'#42a5f5', fillOpacity:.35}}).addTo(layers);
+      map.fitBounds(geo.getBounds());
+    }
+  } catch (error) { status.textContent = `FAILED: ${error.message}`; }
+};
+</script>
+</body>
+</html>
