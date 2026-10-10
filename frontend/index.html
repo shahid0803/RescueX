@@ -27,7 +27,8 @@
         <h2>Start analysis</h2>
         <label>Execution mode</label>
         <select id="mode"><option value="FIXTURE">Development fixture</option><option value="REAL">Real data</option></select>
-        <label>Event date</label><input id="date" type="date" value="2026-08-15">
+        <label>Challenge event date</label><input id="date" type="date" value="2026-08-26">
+        <p class="muted">Study area: Trishuli case study · imagery: 2026-08-16 (before) / 2026-08-28 (after)</p>
         <label>AOI and flood-zone fixture (GeoJSON geometry)</label>
         <textarea id="zone">{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}</textarea>
         <button id="run">Start processing</button>
@@ -45,9 +46,11 @@
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([0.5, 0.5], 8);
+const trishuliAoi = {"type":"Polygon","coordinates":[[[85.10911,27.915223],[85.10911,27.871604],[85.192538,27.871604],[85.192538,27.915223],[85.10911,27.915223]]]};
+const map = L.map('map').setView([27.8934, 85.1508], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap contributors'}).addTo(map);
 let layers = L.layerGroup().addTo(map);
+L.geoJSON(trishuliAoi, {style:{color:'#ffb300', fillOpacity:.08}}).addTo(layers);
 const status = document.getElementById('status');
 document.getElementById('run').onclick = async () => {
   status.textContent = 'Submitting...'; document.getElementById('steps').textContent = '';
@@ -65,7 +68,7 @@ document.getElementById('run').onclick = async () => {
     const report = await fetch(`/api/pipeline/runs/${run.run_id}/report`).then(x=>x.json());
     document.getElementById('report').textContent = report.report;
     const mapData = await fetch(`/api/pipeline/runs/${run.run_id}/layers`).then(x=>x.json());
-    document.getElementById('classification').textContent = mapData.classification;
+    document.getElementById('classification').textContent = `${mapData.classification} · Trishuli case study`;
     layers.clearLayers();
     if (mapData.layers.flood_zones) {
       const geo = L.geoJSON(mapData.layers.flood_zones, {style:{color:'#42a5f5', fillOpacity:.35}}).addTo(layers);

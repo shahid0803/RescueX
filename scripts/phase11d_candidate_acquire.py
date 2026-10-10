@@ -246,8 +246,12 @@ def recover_candidate(
         "recovered_sha256": recovered_hash,
         "production_artifact_modified": False,
     }
+    history = manifest.setdefault("local_recovery_history", [])
+    previous_recovery = manifest.get("local_recovery")
+    if previous_recovery and previous_recovery not in history:
+        history.append(previous_recovery)
+    history.append(recovery_record)
     manifest["local_recovery"] = recovery_record
-    manifest.setdefault("local_recovery_history", []).append(recovery_record)
     before_valid = manifest.get("scenes", {}).get("before", {}).get("validation", {}).get("valid") is True
     after_valid = manifest.get("scenes", {}).get("after", {}).get("validation", {}).get("valid") is True
     if role == "before":

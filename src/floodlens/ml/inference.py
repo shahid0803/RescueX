@@ -10,11 +10,24 @@ from .model import FloodUNet, _require_torch, torch
 from .patches import generate_patches
 
 
+def select_vv_vh(image: np.ndarray, descriptions: tuple[str | None, ...] | list[str | None]) -> np.ndarray:
+    descriptions = tuple(descriptions)
+    if descriptions == ("VV", "VH"):
+        return image
+    if descriptions == ("VV", "VH", "dataMask"):
+        return image[[0, 1]]
+    raise ValueError("unsupported or ambiguous input bands; expected VV,VH or VV,VH,dataMask")
+
+
 def infer_array(
     image: np.ndarray, checkpoint_path: Path, threshold: float = 0.5, patch_size: int = 256, stride: int = 128
 ) -> tuple[np.ndarray, np.ndarray]:
     _require_torch()
-    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    if not isinstance(checkpoint, dict) or "model_state" not in checkpoint or "input_channels" not in checkpoint:
+        raise ValueError("checkpoint must contain model_state and input_channels")
+    if checkpoint["input_channels"] != 2:
+        raise ValueError("checkpoint input contract must be exactly two VV/VH channels")
     model = FloodUNet(checkpoint["input_channels"])
     model.load_state_dict(checkpoint["model_state"])
     model.eval()
@@ -34,7 +47,10 @@ def infer_array(
 def infer_geotiff(input_path: Path, checkpoint_path: Path, output_probability: Path, output_mask: Path, threshold: float = 0.5):
     with rasterio.open(input_path) as source:
         image = source.read().astype("float32")
-        probabilities, mask = infer_array(image, checkpoint_path, threshold)
+        image = select_vv_vh(image, source.descriptions)
+        raise RuntimeError(
+            "real inference blocked: Sentinel/Kuro Siwo preprocessing compatibility is INDETERMINATE"
+        )
         profile = source.profile.copy()
         profile.update(count=1, dtype="float32", nodata=0)
         with rasterio.open(output_probability, "w", **profile) as destination:

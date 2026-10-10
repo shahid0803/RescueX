@@ -13,6 +13,7 @@ from floodlens.ml.data import (
 from floodlens.ml.metrics import segmentation_metrics
 from floodlens.ml.patches import generate_patches
 from floodlens.ml.split import geographic_split
+from floodlens.ml.inference import select_vv_vh
 
 
 def test_forbidden_training_sources_are_rejected():
@@ -62,6 +63,18 @@ def test_patch_generation_keeps_image_mask_alignment():
     patches = generate_patches(image, mask, patch_size=4, stride=3)
     assert patches
     assert all(p.image.shape == (2, 4, 4) and p.mask.shape == (4, 4) for p in patches)
+
+
+def test_inference_selects_only_vv_vh_in_order():
+    image = np.arange(12, dtype="float32").reshape(3, 2, 2)
+    selected = select_vv_vh(image, ("VV", "VH", "dataMask"))
+    assert selected.shape == (2, 2, 2)
+    np.testing.assert_array_equal(selected, image[:2])
+
+
+def test_inference_rejects_ambiguous_band_order():
+    with pytest.raises(ValueError, match="ambiguous"):
+        select_vv_vh(np.zeros((3, 2, 2), dtype="float32"), ("VH", "VV", "dataMask"))
 
 
 def test_metrics_known_case():

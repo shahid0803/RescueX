@@ -21,6 +21,7 @@ from .ml.inference import infer_geotiff
 from .connectivity import BlockedRoadSet, ConnectivityConfig, ConnectivityAnalysisResult, analyze_connectivity
 from .models import Point, Road
 from .pipeline import PipelineRequest, ProcessingRun, RescueXPipeline
+from .pipeline import result_classification
 from .report import processing_report
 
 app = FastAPI(title="RescueX API", version="0.1.0")
@@ -31,6 +32,29 @@ _satellite_downloads: dict[str, dict] = {}
 _preprocessing_runs: dict[str, dict] = {}
 _connectivity_runs: dict[str, ConnectivityAnalysisResult] = {}
 _pipeline_runs: dict[str, ProcessingRun] = {}
+_repo_root = Path(__file__).resolve().parents[2]
+_input_roots = tuple(((_repo_root / name).resolve() for name in ("data", "configs", ".rescuex-data")))
+_output_roots = tuple(((_repo_root / name).resolve() for name in ("data/processed", ".rescuex-data")))
+_checkpoint_root = (_repo_root / "data/models").resolve()
+
+
+def _safe_path(raw_path: str, roots: tuple[Path, ...], *, suffixes: set[str] | None = None) -> Path:
+    candidate = Path(raw_path)
+    resolved = (candidate if candidate.is_absolute() else _repo_root / candidate).resolve()
+    if not any(resolved == root or root in resolved.parents for root in roots):
+        raise ValueError("path is outside the configured RescueX data roots")
+    if suffixes and resolved.suffix.lower() not in suffixes:
+        raise ValueError("path has an unsupported file type")
+    return resolved
+
+
+def _safe_checkpoint(raw_path: str) -> Path:
+    path = _safe_path(raw_path, (_checkpoint_root,), suffixes={".pt", ".pth", ".ckpt"})
+    if not path.is_file():
+        raise ValueError("configured checkpoint does not exist")
+    if not path.with_suffix(".json").is_file():
+        raise ValueError("checkpoint provenance manifest is required")
+    return path
 
 
 @app.get("/", include_in_schema=False)
@@ -69,8 +93,7 @@ def get_pipeline_layers(run_id: str) -> dict:
     run = _pipeline_runs[run_id]
     return {
         "run_id": run_id,
-        "classification": "DEVELOPMENT FIXTURE — NOT REAL SATELLITE RESULT"
-        if run.execution_mode == "FIXTURE" else "REAL DATA RESULT",
+        "classification": result_classification(run),
         "layers": {
             **run.map_layers,
             "flood": run.model_output,
@@ -184,7 +207,12 @@ class RasterQCResponse(BaseModel):
 
 @app.post("/api/preprocessing/inspect")
 def preprocessing_inspect(request: RasterInspectRequest) -> dict:
-    return inspect_raster(Path(request.input_path)).__dict__
+    try:
+        path = _safe_path(request.input_path, _input_roots)
+        return inspect_raster(path).__dict__
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/preprocessing/process")
@@ -192,7 +220,7 @@ def preprocessing_process(request: RasterInspectRequest) -> dict:
     from fastapi import HTTPException
 
     try:
-        report = qc_report(Path(request.input_path))
+        report = qc_report(_safe_path(request.input_path, _input_roots))
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     run_id = str(uuid4())
@@ -232,13 +260,16 @@ def flood_segmentation(request: FloodSegmentationRequest) -> dict:
     from fastapi import HTTPException
 
     try:
+        input_path = _safe_path(request.input_path, _input_roots, suffixes={".tif", ".tiff"})
+        checkpoint_path = _safe_checkpoint(request.checkpoint_path)
+        probability_output = _safe_path(request.probability_output, _output_roots, suffixes={".tif", ".tiff"})
+        mask_output = _safe_path(request.mask_output, _output_roots, suffixes={".tif", ".tiff"})
         return infer_geotiff(
-            Path(request.input_path),
-            Path(request.checkpoint_path),
-            Path(request.probability_output),
-            Path(request.mask_output),
+            input_path, checkpoint_path, probability_output, mask_output,
             request.threshold,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

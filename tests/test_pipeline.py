@@ -1,6 +1,6 @@
 from datetime import date
 
-from floodlens.pipeline import PipelineRequest, ProcessingStatus, RescueXPipeline
+from floodlens.pipeline import PipelineRequest, ProcessingStatus, RescueXPipeline, result_classification
 
 
 def fixture_request(mode="FIXTURE"):
@@ -26,3 +26,17 @@ def test_real_pipeline_refuses_without_verified_artifacts(tmp_path):
     run = RescueXPipeline(tmp_path).execute(fixture_request("REAL"))
     assert run.status == ProcessingStatus.FAILED
     assert "REAL execution unavailable" in run.errors[0]
+    assert result_classification(run) == "REAL EXECUTION INCOMPLETE — NO VERIFIED RESULT"
+
+
+def test_fixture_result_is_not_real():
+    run = RescueXPipeline().execute(fixture_request())
+    assert result_classification(run) == "DEVELOPMENT FIXTURE — NOT REAL SATELLITE RESULT"
+
+
+def test_real_result_requires_verified_outputs():
+    request = fixture_request("REAL")
+    run = RescueXPipeline().execute(request)
+    run.status = ProcessingStatus.COMPLETED
+    run.provenance["real_outputs_verified"] = False
+    assert result_classification(run) == "REAL EXECUTION INCOMPLETE — NO VERIFIED RESULT"
