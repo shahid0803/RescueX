@@ -29,8 +29,11 @@
         <select id="mode"><option value="FIXTURE">Development fixture</option><option value="REAL">Real data</option></select>
         <label>Challenge event date</label><input id="date" type="date" value="2026-08-26">
         <p class="muted">Study area: Trishuli case study · imagery: 2026-08-16 (before) / 2026-08-28 (after)</p>
-        <label>AOI and flood-zone fixture (GeoJSON geometry)</label>
-        <textarea id="zone">{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}</textarea>
+        <label>Study-area AOI (GeoJSON geometry)</label>
+        <textarea id="aoi">{"type":"Polygon","coordinates":[[[85.10911,27.915223],[85.10911,27.871604],[85.192538,27.871604],[85.192538,27.915223],[85.10911,27.915223]]]}</textarea>
+        <label>Synthetic flood-zone fixture (GeoJSON geometry)</label>
+        <textarea id="zone">{"type":"Polygon","coordinates":[[[85.133,27.903],[85.133,27.895],[85.145,27.895],[85.145,27.903],[85.133,27.903]]]}</textarea>
+        <p class="muted">⚠ The flood-zone above is a <strong>synthetic fixture</strong> for demo layout only. It does not represent a real detected flood.</p>
         <button id="run">Start processing</button>
         <p id="status" class="muted">No run started.</p>
       </div>
@@ -47,6 +50,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const trishuliAoi = {"type":"Polygon","coordinates":[[[85.10911,27.915223],[85.10911,27.871604],[85.192538,27.871604],[85.192538,27.915223],[85.10911,27.915223]]]};
+/* Small synthetic fixture polygon inside the Trishuli study area.
+   This is NOT a real detected flood — it is a controlled demo geometry. */
+const defaultFixtureFloodZone = {"type":"Polygon","coordinates":[[[85.133,27.903],[85.133,27.895],[85.145,27.895],[85.145,27.903],[85.133,27.903]]]};
 const map = L.map('map').setView([27.8934, 85.1508], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap contributors'}).addTo(map);
 let layers = L.layerGroup().addTo(map);
@@ -55,8 +61,9 @@ const status = document.getElementById('status');
 document.getElementById('run').onclick = async () => {
   status.textContent = 'Submitting...'; document.getElementById('steps').textContent = '';
   try {
-    const zone = JSON.parse(document.getElementById('zone').value);
-    const body = {aoi: zone, event_date: document.getElementById('date').value, flood_zones:[zone],
+    const aoi = JSON.parse(document.getElementById('aoi').value);
+    const fixtureFloodZone = JSON.parse(document.getElementById('zone').value);
+    const body = {aoi: aoi, event_date: document.getElementById('date').value, flood_zones:[fixtureFloodZone],
       buildings:[], roads:[], bridges:[], settlements:[], destinations:[],
       execution_mode: document.getElementById('mode').value,
       source_manifest:{execution_mode:document.getElementById('mode').value}};
@@ -70,9 +77,10 @@ document.getElementById('run').onclick = async () => {
     const mapData = await fetch(`/api/pipeline/runs/${run.run_id}/layers`).then(x=>x.json());
     document.getElementById('classification').textContent = `${mapData.classification} · Trishuli case study`;
     layers.clearLayers();
+    L.geoJSON(trishuliAoi, {style:{color:'#ffb300', fillOpacity:.08}}).addTo(layers);
     if (mapData.layers.flood_zones) {
-      const geo = L.geoJSON(mapData.layers.flood_zones, {style:{color:'#42a5f5', fillOpacity:.35}}).addTo(layers);
-      map.fitBounds(geo.getBounds());
+      const floodGeo = L.geoJSON(mapData.layers.flood_zones, {style:{color:'#42a5f5', fillOpacity:.35}}).addTo(layers);
+      try { const fb = floodGeo.getBounds(); if (fb.isValid()) { map.fitBounds(fb); } } catch(_) {}
     }
   } catch (error) { status.textContent = `FAILED: ${error.message}`; }
 };

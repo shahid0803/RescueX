@@ -2,54 +2,80 @@
 
 RescueX — Satellite-Powered Flood Damage and Connectivity Intelligence — is
 the foundation for an educational, geospatially explicit system for
-**“Mapping Flood Damage from Space”**. It is not an SOS application. The
+**"Mapping Flood Damage from Space"**. It is not an SOS application. The
 system will transform satellite observations and pre-event map data into
 flood extent, infrastructure impact, road connectivity, and situation-report
 evidence.
 
-## Current hackathon readiness status
+## Current project status
 
-RescueX has a working foundation for Sentinel-1 acquisition, strict raster
-validation, geospatial impact/connectivity analysis, a fixture-labelled
-dashboard, and offline tests. The Trishuli production Sentinel-1 pair was
-acquired and validated locally; the candidate 10 m Sigma0/LEE pair was
-recovered and validated locally from preserved responses. No raw imagery,
-checkpoint, manifest, or diagnostic is committed.
+> [!IMPORTANT]
+> **Model/preprocessing compatibility remains INDETERMINATE.** No validated
+> Trishuli flood mask, flooded-area result, or accuracy metric has been
+> generated. Real inference is blocked until a documented compatibility
+> experiment or recovered preprocessing provenance is completed.
 
-The dashboard defaults to the configured Trishuli AOI and the challenge event
-date, `2026-08-26`. Fixture runs are explicitly labelled demo data. Real
-inference is blocked because Sentinel/Kuro Siwo preprocessing compatibility is
-still **INDETERMINATE**; no validated Trishuli flood mask, flooded-area result,
-accuracy result, or live deployment claim exists. Offline verification is
-`python -m pytest`, `python -m compileall -q src tests scripts`, and
-`git diff --check`. The next scientific step is a documented compatibility
-experiment or recovered preprocessing provenance before any real inference.
+**What works today:**
 
-This repository now contains **Phase 0: project foundation**,
-**Phase 1: satellite data acquisition and scene management**. Phase 1
-implements metadata discovery and safe download primitives; it does not
-implement flood segmentation, damage analysis, connectivity, or a complete
-dashboard. The
-contracts, source registry, configuration boundaries, governance rules,
-documentation, and CI are established before the model, acquisition
-adapters, and complete dashboard are implemented.
+- Sentinel-1 metadata discovery and bounded Process API acquisition pipeline
+  (credential-gated; no imagery committed).
+- The Trishuli 2026 case study is configured with an authoritative AOI
+  (`configs/case_studies/trishuli_2026_aoi.geojson`), challenge event date
+  `2026-08-26`, and a verified before/after Sentinel-1D IW pair (2026-08-16
+  and 2026-08-28, relative orbit 85, VV/VH COG assets).
+- Strict raster validation, VV/VH-only inference adapter, and
+  model-compatibility gate that prevents unverified real execution.
+- Geospatial impact/connectivity analysis (fixture-tested with synthetic
+  geometry only).
+- Fixture-labelled dashboard at `/` with Leaflet map, Trishuli AOI overlay,
+  and a separate synthetic flood-zone polygon for demo layout. Fixture runs
+  are explicitly labelled **DEVELOPMENT FIXTURE — NOT REAL SATELLITE RESULT**.
+- Offline tests via `python -m pytest`, compile-check via
+  `python -m compileall -q src tests scripts`, and whitespace check via
+  `git diff --check`.
+- Kuro Siwo sample QA (one real sample validated) and bounded training
+  experiment (7 training / 5 test samples, CPU, ignored checkpoint).
+- Candidate 10 m Sigma0/LEE pair recovered and validated locally from
+  preserved responses. Original response TIFFs remain unchanged.
 
-The repository deliberately keeps data provenance visible. Copernicus EMS
-maps and post-event OSM edits are validation-only inputs and are never used by
-the production analysis.
+**What has not been done:**
 
-## Phase-0 deliverables
+- No validated Trishuli flood mask or flooded-area result.
+- No production inference — the `infer_geotiff` function contains a hard
+  RuntimeError because Sentinel/Kuro Siwo preprocessing compatibility is
+  INDETERMINATE.
+- No live deployment, production URL, or browser-tested dashboard.
+- No EMSR927 comparison or accuracy metric.
+- No raw imagery, checkpoint, manifest, or diagnostic is committed.
 
-- Logical architecture and requirements traceability.
-- Versioned core contracts for AOIs, scenes, OSM snapshots, masks, and runs.
-- A machine-readable source registry with production/validation boundaries.
-- Environment-backed settings with safe defaults and no credentials in git.
-- Dataset/download procedures and explicit forbidden-data guardrails.
-- Reproducible Python packaging, tests, and GitHub Actions CI.
+## Architecture overview
 
-The small existing analysis code is a contract exercise and reference
-implementation only. It is intentionally not a complete satellite pipeline,
-trained model, or production frontend.
+```
+frontend/index.html     Leaflet dashboard — fixture-mode demo UI
+src/floodlens/
+  api.py                FastAPI application (serves dashboard + REST API)
+  pipeline.py           RescueXPipeline orchestrator (fixture/real paths)
+  models.py             Pydantic data contracts (RunRequest, Feature, Road, Point)
+  analysis.py           Geometry-based impact analysis (overlap, affected roads)
+  phase4.py             Phase 4 integration: real-vs-fixture classification
+  report.py             Situation report generation with attributions
+  config.py             Environment configuration with safe defaults
+  contracts.py          Phase 0 data contracts (EventContext, ScenePair, etc.)
+  registry.py           Source allowlist/validation-only registry
+  geo.py                Geospatial utilities
+  raster.py             GeoTIFF inspection, QC, clipping, reprojection
+  connectivity.py       Road-network connectivity analysis
+  network.py            Graph-based route analysis
+  satellite/            CDSE STAC discovery, download, preprocessing config
+  ml/                   U-Net model, dataset policy, inference (blocked), training
+configs/
+  case_studies/         Trishuli AOI GeoJSON + case-study JSON
+  ml/                   Baseline model config
+  data-sources.json     Machine-readable source registry
+tests/                  Offline regression tests (pytest)
+scripts/                Phase discovery/audit scripts (no network by default)
+docs/                   Architecture, requirements, phase reports
+```
 
 ## Prerequisites
 
@@ -58,9 +84,11 @@ trained model, or production frontend.
 - For production GeoJSON/GeoPackage processing, install the optional
   `geospatial` extra (GeoPandas, Shapely, Rasterio, and OSMnx).
 
-## Installation
+## Setup
 
 ```powershell
+git clone https://github.com/shahid0803/RescueX.git
+cd RescueX
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
@@ -72,7 +100,7 @@ Install geospatial support when needed:
 python -m pip install -e ".[geospatial]"
 ```
 
-## Run the reference API
+## Running the application
 
 ```powershell
 python -m floodlens.api
@@ -81,30 +109,40 @@ python -m floodlens.api
 Open <http://127.0.0.1:8000>. The API documentation is at
 <http://127.0.0.1:8000/docs>.
 
-`POST /api/v1/runs` accepts a provisional AOI/event contract and pre-event
-geometries. A full example is in `examples/minimal-run.json`. This endpoint
-is a smoke-test reference, not the final processing pipeline.
+The dashboard defaults to the configured Trishuli AOI and event date
+`2026-08-26`. Fixture mode submits a synthetic flood-zone polygon (separate
+from the study-area AOI) and labels all results as demo data.
+
+## Running tests
+
+```powershell
+# Full regression suite
+python -m pytest
+
+# Compile check
+python -m compileall -q src tests scripts
+
+# Whitespace / merge-conflict check
+git diff --check
+```
+
+The tests cover AOI/geometry defaults, fixture labelling, real-run guards,
+overlap thresholds, blocked-road handling, path safety, and connectivity.
+No test uses a published damage map as input or makes network requests.
 
 ## Repository map
 
 | Path | Purpose |
 | --- | --- |
-| `docs/architecture.md` | system boundaries and phase plan |
-| `docs/data-sources.md` | source registry and acquisition policy |
-| `docs/datasets.md` | permitted training data and download procedure |
-| `docs/requirements-traceability.md` | hackathon requirement mapping |
-| `docs/SATELLITE_DATA_ACCESS.md` | official CDSE access decision |
-| `docs/SATELLITE_SCENE_SELECTION.md` | deterministic before/after selection |
-| `docs/DATA_DOWNLOAD_GUIDE.md` | credentials, CLI, cache, and manifest |
-| `src/floodlens/contracts.py` | phase-0 data contracts |
-| `src/floodlens/registry.py` | allowlist/validation-only registry |
-| `src/floodlens/config.py` | environment configuration |
-| `src/floodlens/satellite/` | Phase-1 acquisition services |
-| `src/floodlens/raster.py` | Phase-2 georeferenced raster operations |
-| `src/floodlens/satellite/preprocessing.py` | explicit sensor preprocessing configuration |
-| `src/floodlens/ml/` | dataset policy, scene splits, patches, U-Net, metrics, training, inference |
-| `configs/data-sources.json` | machine-readable source registry |
-| `tests/` | contract and reference-analysis tests |
+| `frontend/index.html` | Leaflet dashboard with Trishuli AOI and fixture controls |
+| `src/floodlens/api.py` | FastAPI application serving dashboard + REST API |
+| `src/floodlens/pipeline.py` | End-to-end pipeline orchestrator |
+| `src/floodlens/ml/inference.py` | Inference module (blocked by compatibility gate) |
+| `configs/case_studies/trishuli_2026_aoi.geojson` | Authoritative Trishuli study-area AOI |
+| `docs/architecture.md` | System boundaries and phase plan |
+| `docs/data-sources.md` | Source registry and acquisition policy |
+| `docs/requirements-traceability.md` | Hackathon requirement mapping |
+| `tests/` | Offline regression tests |
 
 ## Data and training boundary
 
@@ -118,172 +156,81 @@ The case study comparison with Copernicus EMSR927 belongs in validation and
 error analysis, not in inference or training. Do not use post-event OSM
 edits. See [DATA_GOVERNANCE.md](DATA_GOVERNANCE.md).
 
-## Tests
+## Historical phase reports
 
-```powershell
-python -m pytest
-```
+> [!NOTE]
+> The sections below are **historical snapshots** from earlier development
+> phases. Some statements (e.g. "no configured AOI", "only Phases 0–1 exist")
+> are superseded by later work. Refer to the "Current project status" section
+> above for the authoritative state.
 
-The tests cover overlap thresholds, blocked-road handling, and alternate
-route connectivity. No test uses a published damage map as input.
+### Phase 0 — project foundation
 
-## Phase-0 limitations
+Logical architecture, requirements traceability, versioned core contracts,
+machine-readable source registry, environment-backed settings, dataset/download
+procedures, forbidden-data guardrails, reproducible packaging, tests, and CI.
 
-No AI model training, large data download, infrastructure damage analysis,
-road connectivity, complete frontend, raster preprocessing, or hydrodynamic
-simulation is included in these phases. These are explicit next-phase work
-items.
+### Phase 1 — satellite data acquisition
 
-## Phase 2 — satellite preprocessing
+Metadata discovery and safe download primitives for CDSE STAC. Does not
+implement flood segmentation, damage analysis, connectivity, or a complete
+dashboard.
 
-Phase 2 adds raster inspection, GeoTIFF metadata validation, AOI clipping,
-CRS-aware reprojection, common-grid alignment, nodata/QC reports, diagnostic
-previews, and explicit Sentinel-1/Sentinel-2 preprocessing contracts. It does
-not claim flood detection, calibration, terrain correction, or cloud masking
-unless the corresponding real product/backend operation is executed.
+### Phase 2 — satellite preprocessing
 
-## AI flood segmentation
+Raster inspection, GeoTIFF metadata validation, AOI clipping, CRS-aware
+reprojection, common-grid alignment, nodata/QC reports, diagnostic previews,
+and explicit Sentinel-1/Sentinel-2 preprocessing contracts.
 
-**Implemented:** a CPU-safe, lightweight binary U-Net baseline, scene/region
-split utility, patch generation, BCE+Dice loss, IoU/Dice/precision/recall,
-checkpoint/experiment manifest writing, and georeferenced probability/mask
-inference. A tiny synthetic end-to-end test proves the software path.
+### Phase 3 — AI flood segmentation
 
-**Experimental/not executed:** Kuro Siwo retrieval, dataset inspection on
-real samples, baseline training, final metrics, and real Sentinel/Trishuli
-inference. Run `rescuex dataset inspect --dataset kuro-siwo` to create
-metadata without downloading data. Install the optional ML extra before
-training: `python -m pip install -e ".[ml]"`.
+CPU-safe lightweight binary U-Net baseline, scene/region split utility, patch
+generation, BCE+Dice loss, IoU/Dice/precision/recall, checkpoint/experiment
+manifest writing, and georeferenced probability/mask inference. A tiny
+synthetic end-to-end test proves the software path; no production inference
+has been executed.
 
-**Phase 4 foundation:** fixture-tested damage overlap and road-connectivity
-analysis are available, but real OSM ingestion, real flood-mask execution,
-final dashboard work, and EMSR927 comparison remain pending.
+### Phase 4 — infrastructure impact
 
-## Phase 5 connectivity foundation
+Fixture-tested damage overlap and road-connectivity analysis. No real OSM
+ingestion, real flood-mask execution, or EMSR927 comparison.
 
-The repository now includes a structured before/after road-network
-connectivity service with Phase 4 blockage adaptation, route paths and
-distances, nearest town/hospital analysis, cut-off and degraded-access
-states, diagnostics, GeoJSON output, CLI, API, and provenance. It is tested
-with synthetic graphs only; no real OSM snapshot, Phase 4 road-impact result,
-or Trishuli connectivity result is present.
+### Phase 5 — connectivity
 
-## Phase 6 end-to-end foundation
+Structured before/after road-network connectivity with route paths, distances,
+nearest town/hospital analysis, cut-off states, diagnostics, and GeoJSON
+output. Tested with synthetic graphs only.
 
-`RescueXPipeline` and the dashboard at `/` provide a single processing-run
-workflow with lifecycle status, progress history, structured layer output, a
-Leaflet map, and a limitations-aware situation report. Fixture mode is
-explicitly labelled **DEVELOPMENT FIXTURE — NOT REAL SATELLITE RESULT**.
-Real mode fails rather than fabricating results because no verified Phase 3
-checkpoint or georeferenced mask is present. See
-[docs/PHASE6_ORCHESTRATION.md](docs/PHASE6_ORCHESTRATION.md).
+### Phase 6 — end-to-end pipeline
 
-## Phase 7 real-data execution status
+`RescueXPipeline` and dashboard with lifecycle status, progress history,
+structured layer output, Leaflet map, and situation report. Fixture mode is
+explicitly labelled. Real mode fails rather than fabricating results.
 
-The Phase 7 audit is recorded in
-[docs/PHASE7_EXECUTION_STATUS.md](docs/PHASE7_EXECUTION_STATUS.md).
-This environment has no CDSE credentials, Kuro Siwo files, real checkpoint,
-or georeferenced inference mask, so real training, Sentinel inference,
-Trishuli processing, infrastructure analysis, connectivity, and EMSR927
-comparison were not claimed or fabricated.
+### Phases 7–8 — real-data readiness
 
-## Phase 8 readiness gate
+Audit and readiness gate. No CDSE credentials, Kuro Siwo files, real
+checkpoint, or georeferenced mask available in this environment.
 
-Phase 8 stops at the real-data readiness gate when CDSE credentials, approved
-training files, a verified checkpoint, or a configured case-study AOI are
-missing. Run `python scripts/phase8_readiness.py` for the current non-secret
-status. See [docs/PHASE8_EXECUTION_STATUS.md](docs/PHASE8_EXECUTION_STATUS.md).
-Phase 8A decouples CDSE, Kuro Siwo, OHSOME, ML, Sentinel inference, Trishuli,
-and EMSR927 validation readiness; see
-[docs/PHASE8A_IMPLEMENTATION_REPORT.md](docs/PHASE8A_IMPLEMENTATION_REPORT.md).
+### Phases 9A–9C — Kuro Siwo acquisition and training
 
-## Phase 9A Kuro Siwo acquisition
+9A: Official Kuro Siwo distribution audited; acquisition BLOCKED (safe subset
+unavailable). 9B: One real labelled GRD WebDataset sample validated. 9C:
+Bounded training on 7 real samples, 5 held-out test samples, 3 CPU epochs —
+ignored checkpoint with measured metrics. Not a Sentinel or Trishuli result.
 
-The official Kuro Siwo distribution was audited without downloading raw
-data. Its smallest inspected GRD GeoTIFF shard is approximately 20.25 GB and
-the official source does not expose a verified sample-level download path.
-Acquisition is therefore explicitly **BLOCKED_SAFE_SUBSET_UNAVAILABLE**;
-see [docs/PHASE9A_IMPLEMENTATION_REPORT.md](docs/PHASE9A_IMPLEMENTATION_REPORT.md).
+### Phases 10A–10D — Trishuli Sentinel-1 pair
 
-## Phase 9B WebDataset sample validation
+10A: Metadata discovery gate. 10B: Case-study configuration with AOI and event
+date. 10C: Exact public CDSE metadata pair verified (2026-08-16 before,
+2026-08-28 after). 10D: Bounded Process API acquisition implementation
+(credential-gated, no request made).
 
-The official labelled GRD WebDataset was safely range-probed and one complete
-real sample was materialized (~1.81 MiB) without downloading a full shard.
-All required fields and source labels were validated, and the RescueX loader
-consumed the sample. This is **REAL KURO SIWO SAMPLE QA — NOT MODEL RESULT**;
-no training was performed. See
-[docs/PHASE9B_IMPLEMENTATION_REPORT.md](docs/PHASE9B_IMPLEMENTATION_REPORT.md).
+### Phase 11E — candidate validation closeout
 
-## Phase 9C controlled real-data training
-
-The bounded experiment trained the existing two-channel lightweight U-Net on
-7 real Kuro Siwo training samples and evaluated it on 5 held-out official
-test-split samples. Three CPU epochs produced an ignored, hashed checkpoint
-and measured metrics. This is Kuro Siwo training-data development only, not a
-Sentinel or Trishuli result. See
-[docs/PHASE9C_IMPLEMENTATION_REPORT.md](docs/PHASE9C_IMPLEMENTATION_REPORT.md).
-
-## Phase 10A CDSE Trishuli pair discovery
-
-Phase 10A stops safely at the metadata gate because no authoritative
-Trishuli AOI/event date exists in this checkout and CDSE credentials are not
-configured. No Sentinel scene ID, coverage claim, pair, or download was
-fabricated. See
-[docs/PHASE10A_IMPLEMENTATION_REPORT.md](docs/PHASE10A_IMPLEMENTATION_REPORT.md)
-and `python scripts/phase10a_discovery.py`.
-
-## Phase 10B Trishuli case-study configuration
-
-The Track B challenge specifies the Trishuli event date as **2026-08-26**.
-The challenge does not supply an authoritative machine-readable AOI, so the
-case-study config records `aoi_status: MISSING_USER_INPUT` and requires a
-team-supplied GeoJSON path. The template intentionally contains no geometry.
-Run `python scripts/phase10b_case_study_check.py`; it performs no network
-search and preserves the CDSE credential gate. See
-[docs/PHASE10B_IMPLEMENTATION_REPORT.md](docs/PHASE10B_IMPLEMENTATION_REPORT.md).
-
-## Phase 10C Sentinel-1 pair verification
-
-The exact public CDSE metadata pair for the Trishuli case study was verified:
-2026-08-16 before and 2026-08-28 after, both Sentinel-1D IW ascending
-relative orbit 85 with explicit VV/VH COG assets. Both metadata footprints
-cover the configured AOI. Authentication remains blocked and no imagery was
-downloaded. This is a verified candidate pair, not a flood result. See
-[docs/PHASE10C_IMPLEMENTATION_REPORT.md](docs/PHASE10C_IMPLEMENTATION_REPORT.md).
-
-## Phase 10D bounded Sentinel-1 acquisition
-
-The bounded Process API acquisition implementation is in place for the exact
-Phase 10C pair, using the unchanged Trishuli AOI, a common 20 m
-`EPSG:32645` grid, and VV/VH FLOAT32 outputs. The live execution is currently
-blocked by missing `RESCUEX_CDSE_CLIENT_ID` and
-`RESCUEX_CDSE_CLIENT_SECRET`; no Sentinel request or raster was made. See
-[docs/PHASE10D_IMPLEMENTATION_REPORT.md](docs/PHASE10D_IMPLEMENTATION_REPORT.md).
-
-## Phase 11E candidate validation closeout
-
-The candidate Sigma0/LEE workflow is implemented with strict offline raster
-validation, bounded diagnostics, and exact manifest-pinned scene windows. The
-preserved BEFORE and AFTER responses were recovered locally by adding only the
-proven `VV`, `VH`, and `dataMask` band descriptions to copies; both recovered
-candidate rasters pass the full candidate validator and the pair is complete.
-The original response TIFFs remain unchanged and ignored.
-
-This pair is compatibility evidence only. Process API LEE is not claimed
-equivalent to SNAP Lee Sigma or the exact pinned Kuro Siwo preprocessing, so
-model compatibility remains **INDETERMINATE**. No inference, validated
-Trishuli flood mask, or flooded-area result has been generated. Run the
-offline suite with `python -m pytest`; live acquisition remains an explicit,
-credential-gated operation.
-
-## Phase 4 execution status
-
-The Phase 4 software path is implemented as a fixture-tested integration
-foundation. Local artifact inspection confirms that no genuine Phase 3
-checkpoint or georeferenced flood mask is available, so no real satellite
-analysis is claimed. Fixture outputs are explicitly labelled
-**DEVELOPMENT FIXTURE — NOT REAL SATELLITE RESULT**. See
-[docs/PHASE4_EXECUTION_STATUS.md](docs/PHASE4_EXECUTION_STATUS.md).
+Candidate Sigma0/LEE pair recovered and validated locally. Process API LEE is
+not claimed equivalent to SNAP Lee Sigma or the pinned Kuro Siwo
+preprocessing. Model compatibility remains **INDETERMINATE**.
 
 ## Required attribution
 
