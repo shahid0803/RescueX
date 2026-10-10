@@ -138,7 +138,7 @@ def build_candidate_process_payload(
     data["processing"] = {
         "backCoeff": "SIGMA0_ELLIPSOID",
         "orthorectify": True,
-        "speckleFilter": {"type": "LEE", "windowSize": 3},
+        "speckleFilter": {"type": "LEE", "windowSizeX": 3, "windowSizeY": 3},
     }
     payload["evalscript"] = """//VERSION=3
 function setup() {
@@ -199,6 +199,28 @@ def validate_candidate_raster(
         if dataset.count != 3 or list(dataset.descriptions) != ["VV", "VH", "dataMask"]:
             result["valid"] = False
             result["errors"].append("expected VV, VH, dataMask bands in that order")
+        expected_transform = grid.transform
+        actual_transform = tuple(dataset.transform)
+        if dataset.width != grid.width or dataset.height != grid.height:
+            result["valid"] = False
+            result["errors"].append(
+                f"expected {grid.width}x{grid.height} raster dimensions"
+            )
+        if dataset.crs is None or dataset.crs.to_string() != grid.crs:
+            result["valid"] = False
+            result["errors"].append(f"expected CRS {grid.crs}")
+        if (
+            not math.isclose(abs(dataset.res[0]), grid.resolution_m, rel_tol=0, abs_tol=1e-6)
+            or not math.isclose(abs(dataset.res[1]), grid.resolution_m, rel_tol=0, abs_tol=1e-6)
+        ):
+            result["valid"] = False
+            result["errors"].append(f"expected {grid.resolution_m} m pixel size")
+        if any(
+            not math.isclose(actual, expected, rel_tol=0, abs_tol=1e-6)
+            for actual, expected in zip(actual_transform, expected_transform)
+        ):
+            result["valid"] = False
+            result["errors"].append("raster transform does not match expected grid")
         if any(dtype != "float32" for dtype in dataset.dtypes):
             result["valid"] = False
             result["errors"].append("expected three FLOAT32 bands")
@@ -418,6 +440,7 @@ def _request_failure_diagnostics(exc: Exception, endpoint: str) -> dict[str, Any
         "stage": "http_submission_or_response",
         "endpoint": endpoint,
         "http_status": getattr(exc, "code", None),
+        "http_reason": _sanitize_text(str(getattr(exc, "reason", ""))[:200]),
         "content_type": None,
         "response_body_received": False,
         "error_type": type(exc).__name__,
