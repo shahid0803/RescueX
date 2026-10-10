@@ -242,6 +242,22 @@ blocked by missing `RESCUEX_CDSE_CLIENT_ID` and
 `RESCUEX_CDSE_CLIENT_SECRET`; no Sentinel request or raster was made. See
 [docs/PHASE10D_IMPLEMENTATION_REPORT.md](docs/PHASE10D_IMPLEMENTATION_REPORT.md).
 
+## Phase 11E candidate validation closeout
+
+The candidate Sigma0/LEE workflow is implemented with strict offline raster
+validation, bounded diagnostics, and exact manifest-pinned scene windows. The
+preserved BEFORE and AFTER responses were recovered locally by adding only the
+proven `VV`, `VH`, and `dataMask` band descriptions to copies; both recovered
+candidate rasters pass the full candidate validator and the pair is complete.
+The original response TIFFs remain unchanged and ignored.
+
+This pair is compatibility evidence only. Process API LEE is not claimed
+equivalent to SNAP Lee Sigma or the exact pinned Kuro Siwo preprocessing, so
+model compatibility remains **INDETERMINATE**. No inference, validated
+Trishuli flood mask, or flooded-area result has been generated. Run the
+offline suite with `python -m pytest`; live acquisition remains an explicit,
+credential-gated operation.
+
 ## Phase 4 execution status
 
 The Phase 4 software path is implemented as a fixture-tested integration
