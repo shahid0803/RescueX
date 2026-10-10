@@ -6,8 +6,9 @@ Both candidate responses were recovered locally from preserved evidence and
 passed strict validation after metadata-only enrichment. This does not
 establish model compatibility.
 
-**Candidate acquisition: BLOCKED before network access.** The requested
-command was executed once:
+**Candidate acquisition history:** the initial execution was blocked by missing
+credentials, and a later candidate request produced preserved response bytes.
+No further network request was made during offline recovery:
 
 ```powershell
 python scripts/phase11d_candidate_acquire.py --execute
@@ -170,7 +171,7 @@ credentials, or environment values are saved.
 
 - Focused Phase 11D tests: **8 passed**
 - Focused Phase 11D/resume tests: **9 passed**
-- Full regression: **75 passed**
+- Full regression: **83 passed**
 - `python -m compileall -q src tests scripts`: **passed**
 - `git diff --check`: **passed**
 - Production artifact hash verification: **passed**

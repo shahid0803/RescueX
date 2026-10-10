@@ -387,4 +387,5 @@ def test_recover_after_completes_pair_from_matching_quarantine(tmp_path: Path):
     assert result["validation"]["pair_complete"] is False
     assert result["validation"]["after_status"] == "PASS"
     assert result["scenes"]["after"]["local_recovery"] is True
+    assert result["local_recovery_history"][0]["role"] == "after"
     assert manifest_path.read_text() != before

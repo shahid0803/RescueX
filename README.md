@@ -7,6 +7,24 @@ system will transform satellite observations and pre-event map data into
 flood extent, infrastructure impact, road connectivity, and situation-report
 evidence.
 
+## Current hackathon readiness status
+
+RescueX has a working foundation for Sentinel-1 acquisition, strict raster
+validation, geospatial impact/connectivity analysis, a fixture-labelled
+dashboard, and offline tests. The Trishuli production Sentinel-1 pair was
+acquired and validated locally; the candidate 10 m Sigma0/LEE pair was
+recovered and validated locally from preserved responses. No raw imagery,
+checkpoint, manifest, or diagnostic is committed.
+
+The dashboard defaults to the configured Trishuli AOI and the challenge event
+date, `2026-08-26`. Fixture runs are explicitly labelled demo data. Real
+inference is blocked because Sentinel/Kuro Siwo preprocessing compatibility is
+still **INDETERMINATE**; no validated Trishuli flood mask, flooded-area result,
+accuracy result, or live deployment claim exists. Offline verification is
+`python -m pytest`, `python -m compileall -q src tests scripts`, and
+`git diff --check`. The next scientific step is a documented compatibility
+experiment or recovered preprocessing provenance before any real inference.
+
 This repository now contains **Phase 0: project foundation**,
 **Phase 1: satellite data acquisition and scene management**. Phase 1
 implements metadata discovery and safe download primitives; it does not

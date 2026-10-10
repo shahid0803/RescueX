@@ -65,7 +65,16 @@ class ProcessingRun(BaseModel):
     errors: list[str] = Field(default_factory=list)
     provenance: dict[str, Any] = Field(default_factory=dict)
     execution_mode: str
+    result_classification: str = "EXECUTION INCOMPLETE — NO VERIFIED RESULT"
     history: list[dict[str, Any]] = Field(default_factory=list)
+
+
+def result_classification(run: ProcessingRun) -> str:
+    if run.execution_mode == "FIXTURE":
+        return DEVELOPMENT_FIXTURE_LABEL
+    if run.status == ProcessingStatus.COMPLETED and run.provenance.get("real_outputs_verified") is True:
+        return "REAL DATA RESULT"
+    return "REAL EXECUTION INCOMPLETE — NO VERIFIED RESULT"
 
 
 class RescueXPipeline:
@@ -127,13 +136,16 @@ class RescueXPipeline:
                     }
                 }
                 run.model_output = {"status": "NOT_YET_AVAILABLE", "classification": "synthetic fixture input"}
+                run.result_classification = result_classification(run)
                 self._transition(run, ProcessingStatus.GENERATING_REPORT, "generate_report", .9)
                 run.report_output = situation_report(request.event_date, results)
                 self._transition(run, ProcessingStatus.COMPLETED, "completed_fixture_run", 1)
                 return run
             self._transition(run, ProcessingStatus.FAILED, "real_execution_unavailable", 1)
+            run.result_classification = result_classification(run)
             return run
         except Exception as exc:
             run.errors.append(str(exc))
             self._transition(run, ProcessingStatus.FAILED, "failed", 1)
+            run.result_classification = result_classification(run)
             return run
