@@ -3,87 +3,611 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RescueX dashboard</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="RescueX satellite-powered flood damage and connectivity intelligence — Trishuli case study.">
+  <title>RescueX — Flood Intelligence Console</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <style>
-    :root { color-scheme: dark; --bg:#08111f; --card:#132238; --line:#2e4768; --muted:#9eb1cc; --accent:#42a5f5 }
-    * { box-sizing:border-box } body { margin:0; background:var(--bg); color:#eaf2ff; font:15px system-ui,sans-serif }
-    main { max-width:1200px; margin:auto; padding:24px } .grid { display:grid; grid-template-columns:360px 1fr; gap:18px }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px }
-    textarea,input,select { width:100%; margin:6px 0 14px; padding:10px; color:#eaf2ff; background:#091525; border:1px solid var(--line); border-radius:6px }
-    button { background:var(--accent); color:#06101d; border:0; border-radius:6px; padding:10px 16px; font-weight:700; cursor:pointer }
-    #map { min-height:520px; border-radius:8px } pre { white-space:pre-wrap; overflow:auto; max-height:420px }
-    .muted { color:var(--muted) } .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#25415e; margin:3px }
-    @media (max-width:800px) { .grid { grid-template-columns:1fr } #map { min-height:360px } }
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: #0d1b2d;
+      --panel-2: #102239;
+      --panel-3: #142b43;
+      --line: rgba(145, 180, 213, .16);
+      --line-strong: rgba(145, 180, 213, .28);
+      --text: #eef5fc;
+      --muted: #90a7bf;
+      --muted-2: #6e879f;
+      --cyan: #5fe1d0;
+      --cyan-strong: #2fc8bb;
+      --blue: #65a9ff;
+      --amber: #ffbf69;
+      --red: #ff777b;
+      --green: #67d8a7;
+      --shadow: 0 22px 60px rgba(0,0,0,.24);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--text);
+      background:
+        radial-gradient(ellipse at 75% -15%, rgba(43, 114, 151, .19), transparent 36%),
+        radial-gradient(ellipse at 0% 30%, rgba(30, 98, 103, .10), transparent 34%),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px; line-height: 1.5;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    a { color: inherit; text-decoration: none; }
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px;
+      padding: 0 clamp(18px, 3.2vw, 48px); border-bottom: 1px solid var(--line);
+      background: rgba(7,17,31,.88); backdrop-filter: blur(18px); position: sticky; top: 0; z-index: 500;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 220px; }
+    .brand-mark { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; color: #071a24; background: linear-gradient(135deg, var(--cyan), #6da7f7); font-size: 17px; font-weight: 900; letter-spacing: -1.5px; box-shadow: 0 7px 24px rgba(75, 219, 203, .15); }
+    .brand-name { font-weight: 800; font-size: 18px; letter-spacing: -.45px; }
+    .brand-tagline { color: var(--muted); font-size: 10px; letter-spacing: 1.45px; text-transform: uppercase; margin-top: 1px; }
+    .topnav { display: flex; align-items: center; gap: 7px; }
+    .topnav a { padding: 9px 13px; border-radius: 10px; color: var(--muted); font-size: 12px; transition: .18s ease; }
+    .topnav a.active, .topnav a:hover { background: rgba(95,225,208,.09); color: var(--cyan); }
+    .topbar-right { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 220px; }
+    .pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 7px 11px; font-size: 10px; letter-spacing: .65px; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+    .pill.demo { color: var(--amber); border-color: rgba(255,191,105,.27); background: rgba(255,191,105,.07); }
+    .pill.neutral { color: var(--muted); }
+    .dot { width: 6px; height: 6px; display: inline-block; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(255,255,255,.045); }
+    main { max-width: 1600px; margin: auto; padding: 30px clamp(16px, 3.2vw, 48px) 36px; }
+    .eyebrow { color: var(--cyan); font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 23px; }
+    h1 { margin: 9px 0 7px; font-size: clamp(28px, 3vw, 39px); line-height: 1.1; letter-spacing: -1.45px; font-weight: 780; }
+    .hero-copy { margin: 0; max-width: 720px; color: var(--muted); font-size: 13px; }
+    .hero-meta { text-align: right; flex: 0 0 auto; }
+    .hero-meta .event-date { font-size: 14px; font-weight: 700; }
+    .hero-meta .meta-caption { color: var(--muted-2); font-size: 11px; margin-top: 4px; }
+    .alert-banner { display: flex; align-items: flex-start; gap: 13px; border: 1px solid rgba(255,191,105,.23); background: linear-gradient(100deg, rgba(255,191,105,.085), rgba(255,191,105,.025)); border-radius: 14px; padding: 14px 17px; margin-bottom: 20px; }
+    .alert-icon { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; color: var(--amber); background: rgba(255,191,105,.12); font-size: 16px; }
+    .alert-title { color: #ffe0b5; font-size: 12px; font-weight: 800; letter-spacing: .45px; }
+    .alert-text { color: #bcae9b; font-size: 11px; margin-top: 3px; max-width: 1000px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 13px; margin-bottom: 20px; }
+    .metric { background: linear-gradient(135deg, rgba(16,34,57,.94), rgba(11,25,42,.95)); border: 1px solid var(--line); border-radius: 15px; padding: 16px 17px; min-height: 115px; position: relative; overflow: hidden; }
+    .metric:after { content: ""; position: absolute; right: -22px; top: -35px; height: 86px; width: 86px; border: 1px solid rgba(95,225,208,.10); border-radius: 50%; box-shadow: 0 0 0 14px rgba(95,225,208,.025), 0 0 0 28px rgba(95,225,208,.018); }
+    .metric-label { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 7px; }
+    .metric-value { font-size: 21px; font-weight: 750; letter-spacing: -.5px; margin-top: 13px; }
+    .metric-foot { color: var(--muted-2); font-size: 10px; margin-top: 2px; }
+    .metric-value.small { font-size: 16px; letter-spacing: -.2px; }
+    .workspace { display: grid; grid-template-columns: minmax(300px, 355px) minmax(0, 1fr); gap: 18px; align-items: start; }
+    .left-stack, .right-stack { display: grid; gap: 16px; min-width: 0; }
+    .card { background: linear-gradient(155deg, rgba(16,34,57,.97), rgba(10,24,41,.98)); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); min-width: 0; }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 20px 0; }
+    .card-title-wrap { display: flex; gap: 10px; align-items: center; min-width: 0; }
+    .card-icon { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; color: var(--cyan); background: rgba(95,225,208,.085); font-size: 15px; }
+    h2 { margin: 0; font-size: 14px; font-weight: 750; letter-spacing: -.1px; }
+    .card-subtitle { color: var(--muted-2); font-size: 10px; margin-top: 2px; }
+    .card-body { padding: 17px 20px 20px; }
+    .field { margin-bottom: 15px; }
+    label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #cad8e7; font-size: 11px; font-weight: 650; margin-bottom: 7px; }
+    .label-hint { color: var(--muted-2); font-size: 10px; font-weight: 500; }
+    select, input, textarea { width: 100%; border-radius: 10px; border: 1px solid rgba(142,173,205,.23); background: #091727; color: var(--text); padding: 11px 12px; min-width: 0; transition: border-color .18s, box-shadow .18s; }
+    select:focus, input:focus, textarea:focus { border-color: rgba(95,225,208,.65); box-shadow: 0 0 0 3px rgba(95,225,208,.07); outline: none; }
+    select:disabled { opacity: .65; }
+    textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; line-height: 1.5; resize: vertical; min-height: 88px; }
+    .input-wrap { position: relative; }
+    .field-note { display: flex; align-items: flex-start; gap: 8px; color: var(--muted-2); font-size: 10px; line-height: 1.55; margin: 7px 0 0; }
+    .field-note strong { color: var(--amber); font-weight: 750; }
+    .form-actions { display: flex; gap: 9px; margin-top: 18px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid transparent; border-radius: 10px; padding: 11px 14px; font-size: 11px; font-weight: 800; transition: transform .16s, background .16s, border-color .16s; }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { flex: 1; color: #06201f; background: linear-gradient(135deg, var(--cyan), #7ee6b9); box-shadow: 0 7px 22px rgba(47,200,187,.13); }
+    .btn-primary:hover { background: linear-gradient(135deg, #83f0e1, #94edc7); }
+    .btn-primary:disabled { cursor: wait; opacity: .65; }
+    .btn-secondary { color: #c5d5e6; border-color: var(--line-strong); background: rgba(255,255,255,.025); }
+    .btn-secondary:hover { background: rgba(255,255,255,.06); }
+    details.advanced { margin-top: 15px; border-top: 1px solid var(--line); padding-top: 13px; }
+    details.advanced summary { color: var(--muted); font-weight: 700; font-size: 10px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+    details.advanced summary::-webkit-details-marker { display:none; }
+    details.advanced summary:after { content: "+"; color: var(--cyan); font-size: 18px; font-weight: 400; }
+    details.advanced[open] summary:after { content: "\2212"; }
+    .status-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 15px; }
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; padding: 5px 8px; background: rgba(95,225,208,.085); color: var(--cyan); font-size: 9px; letter-spacing: .55px; font-weight: 850; text-transform: uppercase; }
+    .status-badge.warn { color: var(--amber); background: rgba(255,191,105,.09); }
+    .status-message { font-size: 10px; color: var(--muted); flex: 1 1 100%; margin: 0; overflow-wrap: anywhere; }
+    .progress-track { background: rgba(255,255,255,.06); border-radius: 999px; height: 5px; margin-top: 14px; overflow: hidden; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--cyan-strong), var(--blue)); border-radius: inherit; transition: width .35s; }
+    .steps-list { padding: 15px 20px 19px; display: grid; gap: 9px; }
+    .step { display: flex; align-items: center; gap: 10px; color: var(--muted-2); font-size: 10px; }
+    .step-marker { width: 21px; height: 21px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 9px; }
+    .step.done { color: #d6e5f3; }
+    .step.done .step-marker { color: var(--cyan); border-color: rgba(95,225,208,.35); background: rgba(95,225,208,.08); }
+    .step.active { color: var(--cyan); }
+    .step.active .step-marker { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 0 3px rgba(95,225,208,.07); }
+    .map-card .card-head { padding-bottom: 15px; }
+    .map-tools { display: flex; align-items: center; gap: 7px; }
+    .tiny-btn { color: var(--muted); font-size: 10px; font-weight: 700; border: 1px solid var(--line); background: rgba(255,255,255,.025); border-radius: 8px; padding: 7px 9px; }
+    .tiny-btn:hover { color: var(--cyan); border-color: rgba(95,225,208,.4); }
+    .map-wrap { position: relative; padding: 0 16px; }
+    #map { width: 100%; height: 405px; border: 1px solid var(--line); border-radius: 13px; background: #0a1a28; overflow: hidden; z-index: 1; }
+    .map-overlay { position: absolute; z-index: 400; top: 12px; left: 28px; display: flex; align-items: center; gap: 7px; background: rgba(7,17,31,.88); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(12px); border-radius: 9px; padding: 8px 10px; font-size: 10px; font-weight: 750; pointer-events: none; }
+    .map-overlay .pulse { width: 6px; height: 6px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 0 4px rgba(95,225,208,.13); }
+    .map-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 13px 20px 17px; color: var(--muted); font-size: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; }
+    .legend-swatch { width: 14px; height: 10px; border-radius: 3px; border: 1px solid; }
+    .swatch-aoi { background: rgba(255,191,105,.08); border-color: var(--amber); }
+    .swatch-fixture { background: rgba(95,225,208,.35); border-color: var(--cyan); }
+    .legend-note { margin-left: auto; color: var(--muted-2); }
+    .map-caption { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 0 20px 16px; font-size: 10px; color: var(--muted); }
+    .map-caption strong { color: var(--amber); font-weight: 750; }
+    .results-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; padding: 17px 20px 20px; }
+    .result-tile { background: rgba(5,15,27,.55); border: 1px solid var(--line); border-radius: 12px; padding: 13px; min-width: 0; }
+    .result-k { color: var(--muted-2); font-size: 9px; text-transform: uppercase; letter-spacing: .8px; font-weight: 800; }
+    .result-v { font-size: 21px; letter-spacing: -.5px; font-weight: 760; margin-top: 8px; overflow-wrap: anywhere; }
+    .result-foot { font-size: 9px; color: var(--muted-2); margin-top: 3px; }
+    .lower-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; }
+    .code-output { margin: 0; max-height: 285px; overflow: auto; padding: 17px 20px 20px; color: #bfd1e5; font: 10px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .report-output { max-height: 285px; overflow: auto; padding: 17px 20px 20px; color: #b4c6d9; font: 10px/1.75 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .empty { color: var(--muted-2); font-family: inherit; font-size: 11px; }
+    .section-label { color: var(--muted-2); font-size: 9px; text-transform: uppercase; letter-spacing: 1.25px; font-weight: 850; }
+    footer { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 23px 1px 0; color: var(--muted-2); font-size: 10px; }
+    footer strong { color: var(--muted); font-weight: 700; }
+    .leaflet-container { font-family: inherit; }
+    .leaflet-control-zoom a { background: #0d1b2d !important; color: #e8f2fb !important; border-color: rgba(145,180,213,.2) !important; }
+    .leaflet-control-attribution { background: rgba(7,17,31,.8) !important; color: #adc1d4 !important; }
+    .leaflet-control-attribution a { color: var(--cyan) !important; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0d1b2d; color: var(--text); }
+    .leaflet-popup-content { font-size: 11px; }
+    .toast { position: fixed; right: 20px; bottom: 20px; z-index: 1000; max-width: min(430px, calc(100vw - 40px)); background: #12253a; border: 1px solid var(--line-strong); box-shadow: var(--shadow); border-radius: 12px; padding: 13px 16px; color: var(--text); font-size: 12px; display: none; }
+    .toast.show { display: block; }
+    .toast.error { border-color: rgba(255,119,123,.45); }
+    @media (max-width: 1050px) {
+      .topnav { display: none; } .workspace { grid-template-columns: minmax(270px, 330px) minmax(0,1fr); }
+      .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .lower-grid { grid-template-columns: 1fr; }
+      .hero { align-items: flex-start; }
+    }
+    @media (max-width: 760px) {
+      .topbar { height: 67px; padding: 0 16px; } .brand { min-width: 0; } .brand-tagline { font-size: 8px; letter-spacing: 1px; }
+      .topbar-right { min-width: 0; } .topbar-right .pill.neutral { display: none; }
+      main { padding: 22px 13px 27px; } .hero { flex-direction: column; align-items: flex-start; gap: 13px; }
+      .hero-meta { text-align: left; } .workspace { grid-template-columns: 1fr; } .metrics { gap: 9px; }
+      .metric { min-height: 100px; padding: 13px; } .metric-value { font-size: 18px; }
+      .card-head { padding-left: 15px; padding-right: 15px; } .card-body, .steps-list { padding-left: 15px; padding-right: 15px; }
+      .map-wrap { padding: 0 10px; } #map { height: 350px; } .map-overlay { left: 21px; }
+      .map-caption { padding-left: 15px; padding-right: 15px; } .results-grid { padding-left: 13px; padding-right: 13px; gap: 7px; }
+      .result-tile { padding: 10px; } .result-v { font-size: 17px; } .legend-note { width: 100%; margin-left: 0; }
+    }
+    @media (max-width: 390px) {
+      .pill.demo { font-size: 8px; padding: 6px 8px; } .brand-name { font-size: 16px; }
+      .metrics { grid-template-columns: 1fr 1fr; } .results-grid { grid-template-columns: 1fr 1fr; }
+      .results-grid .result-tile:last-child { grid-column: 1 / -1; }
+    }
   </style>
 </head>
 <body>
-<main>
-  <h1>RescueX</h1>
-  <p class="muted">Satellite-powered flood damage and connectivity intelligence</p>
-  <div class="grid">
-    <section>
-      <div class="card">
-        <h2>Start analysis</h2>
-        <label>Execution mode</label>
-        <select id="mode"><option value="FIXTURE">Development fixture</option><option value="REAL">Real data</option></select>
-        <label>Challenge event date</label><input id="date" type="date" value="2026-08-26">
-        <p class="muted">Study area: Trishuli case study · imagery: 2026-08-16 (before) / 2026-08-28 (after)</p>
-        <label>Study-area AOI (GeoJSON geometry)</label>
-        <textarea id="aoi">{"type":"Polygon","coordinates":[[[85.10911,27.915223],[85.10911,27.871604],[85.192538,27.871604],[85.192538,27.915223],[85.10911,27.915223]]]}</textarea>
-        <label>Synthetic flood-zone fixture (GeoJSON geometry)</label>
-        <textarea id="zone">{"type":"Polygon","coordinates":[[[85.133,27.903],[85.133,27.895],[85.145,27.895],[85.145,27.903],[85.133,27.903]]]}</textarea>
-        <p class="muted">⚠ The flood-zone above is a <strong>synthetic fixture</strong> for demo layout only. It does not represent a real detected flood.</p>
-        <button id="run">Start processing</button>
-        <p id="status" class="muted">No run started.</p>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="RescueX home">
+      <div class="brand-mark">RX</div>
+      <div><div class="brand-name">RescueX</div><div class="brand-tagline">Flood intelligence console</div></div>
+    </a>
+    <nav class="topnav" aria-label="Main navigation">
+      <a href="#overview" class="active">Overview</a>
+      <a href="#analysis">Analysis</a>
+      <a href="#outputs">Outputs</a>
+      <a href="#report-section">Situation report</a>
+    </nav>
+    <div class="topbar-right">
+      <span class="pill neutral"><span class="dot" style="color:var(--green)"></span> Local API</span>
+      <span class="pill demo"><span class="dot"></span> Demo environment</span>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="overview">
+      <div>
+        <div class="eyebrow"><span>&#9670;</span> Satellite-powered disaster intelligence</div>
+        <h1>Trishuli flood intelligence</h1>
+        <p class="hero-copy">A geospatial workspace for exploring event context, potential infrastructure impacts and connectivity. This current interface runs controlled fixture analysis&mdash;not validated real-world flood inference.</p>
       </div>
-      <div class="card"><h2>Run status</h2><div id="steps"></div></div>
-      <div class="card"><h2>Situation report</h2><pre id="report">Report appears after a run.</pre></div>
+      <div class="hero-meta">
+        <div class="section-label">Challenge event date</div>
+        <div class="event-date">26 August 2026</div>
+        <div class="meta-caption">Trishuli corridor &middot; Nepal</div>
+      </div>
     </section>
-    <section>
-      <div class="card"><h2>Map layers</h2><div id="map"></div><p id="classification" class="muted"></p></div>
-      <div class="card"><h2>Structured results</h2><pre id="results">No results yet.</pre></div>
+
+    <section class="alert-banner" aria-label="Scientific status notice">
+      <div class="alert-icon">!</div>
+      <div>
+        <div class="alert-title">REAL SATELLITE INFERENCE IS CURRENTLY BLOCKED</div>
+        <div class="alert-text">Model/preprocessing compatibility is <strong>INDETERMINATE</strong>. Fixture results below are synthetic UI and pipeline demonstrations. They must not be interpreted as observed flooding, measured damage or emergency-response guidance.</div>
+      </div>
     </section>
-  </div>
-  <footer class="muted">Contains modified Copernicus Sentinel data 2026. © OpenStreetMap contributors.</footer>
-</main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <section class="metrics" aria-label="Case study summary">
+      <article class="metric">
+        <div class="metric-label"><span>&#8982;</span> Study area</div>
+        <div class="metric-value small">Trishuli corridor</div>
+        <div class="metric-foot">Configured case-study AOI</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label"><span>&#9719;</span> Sentinel-1 pair</div>
+        <div class="metric-value small">16 Aug &mdash; 28 Aug</div>
+        <div class="metric-foot">Before / after metadata selection</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label"><span>&#9638;</span> Candidate grid</div>
+        <div class="metric-value">10 m</div>
+        <div class="metric-foot">Candidate raster spacing; not map accuracy</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label"><span>&#9678;</span> Model readiness</div>
+        <div class="metric-value small" style="color:var(--amber)">Under review</div>
+        <div class="metric-foot">Compatibility not confirmed</div>
+      </article>
+    </section>
+
+    <div class="workspace" id="analysis">
+      <aside class="left-stack">
+        <section class="card">
+          <div class="card-head">
+            <div class="card-title-wrap"><div class="card-icon">&#8961;</div><div><h2>Configure analysis</h2><div class="card-subtitle">Case study &amp; execution settings</div></div></div>
+            <span class="status-badge">Fixture</span>
+          </div>
+          <div class="card-body">
+            <form id="analysis-form">
+              <div class="field">
+                <label for="mode">Execution mode <span class="label-hint">Required</span></label>
+                <select id="mode" name="mode" aria-describedby="mode-note">
+                  <option value="FIXTURE" selected>Development fixture &mdash; safe demo</option>
+                  <option value="REAL" disabled>Real satellite inference &mdash; blocked</option>
+                </select>
+                <p class="field-note" id="mode-note"><span style="color:var(--amber)">&#9679;</span><span>Real inference stays disabled while model/input compatibility remains unresolved.</span></p>
+              </div>
+              <div class="field">
+                <label for="date">Challenge event date</label>
+                <input id="date" name="date" type="date" value="2026-08-26" required>
+              </div>
+              <div class="field">
+                <label for="case-study">Case study</label>
+                <input id="case-study" value="Trishuli corridor, Nepal" readonly>
+                <p class="field-note">Imagery pair: <span>2026-08-16 before &middot; 2026-08-28 after</span></p>
+              </div>
+              <details class="advanced">
+                <summary>Advanced geometry settings</summary>
+                <div style="padding-top:14px">
+                  <div class="field">
+                    <label for="aoi">Study-area AOI <span class="label-hint">GeoJSON geometry</span></label>
+                    <textarea id="aoi" spellcheck="false" aria-label="Study area GeoJSON">{"type":"Polygon","coordinates":[[[85.10911,27.915223],[85.10911,27.871604],[85.192538,27.871604],[85.192538,27.915223],[85.10911,27.915223]]]}</textarea>
+                  </div>
+                  <div class="field">
+                    <label for="zone">Synthetic fixture zone <span class="label-hint">GeoJSON geometry</span></label>
+                    <textarea id="zone" spellcheck="false" aria-label="Synthetic fixture flood zone GeoJSON">{"type":"Polygon","coordinates":[[[85.133,27.903],[85.133,27.895],[85.145,27.895],[85.145,27.903],[85.133,27.903]]]}</textarea>
+                    <p class="field-note"><strong>Demo only:</strong> this small synthetic polygon is for interface testing. It is not a flood detection.</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary" id="reset-geometry" style="width:100%">Reset default geometries</button>
+                </div>
+              </details>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="run"><span>&#9654;</span> Run demo workflow</button>
+              </div>
+              <div class="status-line" role="status" aria-live="polite">
+                <span class="status-badge" id="run-badge">Ready</span>
+                <p class="status-message" id="status">No run started. Start a fixture workflow to inspect the orchestration and reporting UI.</p>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div class="card-title-wrap"><div class="card-icon">&#9719;</div><div><h2>Pipeline activity</h2><div class="card-subtitle">Status returned by RescueX API</div></div></div>
+            <span class="section-label" id="progress-label">0% complete</span>
+          </div>
+          <div class="card-body" style="padding-top:12px">
+            <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          </div>
+          <div class="steps-list" id="steps">
+            <div class="step active"><span class="step-marker">1</span><span>Validate study inputs</span></div>
+            <div class="step"><span class="step-marker">2</span><span>Run controlled fixture analysis</span></div>
+            <div class="step"><span class="step-marker">3</span><span>Build connectivity summary</span></div>
+            <div class="step"><span class="step-marker">4</span><span>Generate situation report</span></div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="right-stack">
+        <section class="card map-card">
+          <div class="card-head">
+            <div class="card-title-wrap"><div class="card-icon">&#8982;</div><div><h2>Geospatial workspace</h2><div class="card-subtitle">Study area and controlled fixture overlay</div></div></div>
+            <div class="map-tools"><button type="button" class="tiny-btn" id="fit-aoi">Fit study area</button><span class="status-badge warn">Synthetic zone</span></div>
+          </div>
+          <div class="map-wrap">
+            <div id="map" role="application" aria-label="Map of Trishuli study area with a synthetic fixture polygon"></div>
+            <div class="map-overlay"><span class="pulse"></span> TRISHULI CASE STUDY <span style="color:var(--muted-2);font-weight:500">/ FIXTURE VIEW</span></div>
+          </div>
+          <div class="map-legend">
+            <span class="legend-item"><span class="legend-swatch swatch-aoi"></span> Study-area boundary</span>
+            <span class="legend-item"><span class="legend-swatch swatch-fixture"></span> Synthetic flood-zone fixture</span>
+            <span class="legend-note">No real flood extent displayed</span>
+          </div>
+          <div class="map-caption"><span id="classification">DEVELOPMENT FIXTURE &mdash; NOT A REAL SATELLITE RESULT</span><strong>INFERENCE BLOCKED</strong></div>
+        </section>
+
+        <section class="card" id="outputs">
+          <div class="card-head">
+            <div class="card-title-wrap"><div class="card-icon">&#9636;</div><div><h2>Run summary</h2><div class="card-subtitle">Values are populated from the API response</div></div></div>
+            <span class="section-label" id="run-id-label">NO RUN ID</span>
+          </div>
+          <div class="results-grid">
+            <div class="result-tile"><div class="result-k">Fixture zones</div><div class="result-v" id="zones-value">&mdash;</div><div class="result-foot">Synthetic inputs only</div></div>
+            <div class="result-tile"><div class="result-k">Affected buildings</div><div class="result-v" id="buildings-value">&mdash;</div><div class="result-foot">Geometry overlap analysis</div></div>
+            <div class="result-tile"><div class="result-k">Road impacts</div><div class="result-v" id="roads-value">&mdash;</div><div class="result-foot">Fixture-dependent result</div></div>
+          </div>
+        </section>
+
+        <div class="lower-grid">
+          <section class="card" id="report-section">
+            <div class="card-head"><div class="card-title-wrap"><div class="card-icon">&equiv;</div><div><h2>Situation report</h2><div class="card-subtitle">Generated by the RescueX API</div></div></div><button type="button" class="tiny-btn" id="copy-report">Copy</button></div>
+            <div class="report-output" id="report">The situation report will appear here after a run.
+
+This area displays the API-generated report. Fixture output is not a satellite-derived result.</div>
+          </section>
+          <section class="card">
+            <div class="card-head"><div class="card-title-wrap"><div class="card-icon">{ }</div><div><h2>Structured output</h2><div class="card-subtitle">Raw JSON response</div></div></div><button type="button" class="tiny-btn" id="copy-results">Copy JSON</button></div>
+            <pre class="code-output" id="results">No results yet.</pre>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <span><strong>RescueX</strong> &middot; Satellite-powered flood damage and connectivity intelligence</span>
+      <span>Fixture workflow only &middot; Contains modified Copernicus Sentinel data 2026. &copy; OpenStreetMap contributors.</span>
+    </footer>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const trishuliAoi = {"type":"Polygon","coordinates":[[[85.10911,27.915223],[85.10911,27.871604],[85.192538,27.871604],[85.192538,27.915223],[85.10911,27.915223]]]};
-/* Small synthetic fixture polygon inside the Trishuli study area.
-   This is NOT a real detected flood — it is a controlled demo geometry. */
-const defaultFixtureFloodZone = {"type":"Polygon","coordinates":[[[85.133,27.903],[85.133,27.895],[85.145,27.895],[85.145,27.903],[85.133,27.903]]]};
-const map = L.map('map').setView([27.8934, 85.1508], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap contributors'}).addTo(map);
-let layers = L.layerGroup().addTo(map);
-L.geoJSON(trishuliAoi, {style:{color:'#ffb300', fillOpacity:.08}}).addTo(layers);
-const status = document.getElementById('status');
-document.getElementById('run').onclick = async () => {
-  status.textContent = 'Submitting...'; document.getElementById('steps').textContent = '';
-  try {
-    const aoi = JSON.parse(document.getElementById('aoi').value);
-    const fixtureFloodZone = JSON.parse(document.getElementById('zone').value);
-    const body = {aoi: aoi, event_date: document.getElementById('date').value, flood_zones:[fixtureFloodZone],
-      buildings:[], roads:[], bridges:[], settlements:[], destinations:[],
-      execution_mode: document.getElementById('mode').value,
-      source_manifest:{execution_mode:document.getElementById('mode').value}};
-    const response = await fetch('/api/pipeline/runs', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    const run = await response.json(); if (!response.ok) throw new Error(run.detail || 'request failed');
-    status.innerHTML = `<span class="badge">${run.status}</span> <span class="badge">${run.execution_mode}</span> ${run.current_step}`;
-    document.getElementById('steps').innerHTML = run.history.map(x => `<div class="badge">${x.status} · ${Math.round(x.progress*100)}%</div>`).join('');
-    document.getElementById('results').textContent = JSON.stringify(run.results || run.errors, null, 2);
-    const report = await fetch(`/api/pipeline/runs/${run.run_id}/report`).then(x=>x.json());
-    document.getElementById('report').textContent = report.report;
-    const mapData = await fetch(`/api/pipeline/runs/${run.run_id}/layers`).then(x=>x.json());
-    document.getElementById('classification').textContent = `${mapData.classification} · Trishuli case study`;
-    layers.clearLayers();
-    L.geoJSON(trishuliAoi, {style:{color:'#ffb300', fillOpacity:.08}}).addTo(layers);
-    if (mapData.layers.flood_zones) {
-      const floodGeo = L.geoJSON(mapData.layers.flood_zones, {style:{color:'#42a5f5', fillOpacity:.35}}).addTo(layers);
-      try { const fb = floodGeo.getBounds(); if (fb.isValid()) { map.fitBounds(fb); } } catch(_) {}
+(() => {
+  'use strict';
+  /* ─── Trishuli AOI and synthetic fixture zone ─── */
+  const DEFAULT_AOI = {"type":"Polygon","coordinates":[[[85.10911,27.915223],[85.10911,27.871604],[85.192538,27.871604],[85.192538,27.915223],[85.10911,27.915223]]]};
+  /* Small synthetic fixture polygon inside the Trishuli study area.
+     This is NOT a real detected flood — it is a controlled demo geometry. */
+  const DEFAULT_FIXTURE_ZONE = {"type":"Polygon","coordinates":[[[85.133,27.903],[85.133,27.895],[85.145,27.895],[85.145,27.903],[85.133,27.903]]]};
+  const $ = (id) => document.getElementById(id);
+  const form = $('analysis-form');
+  const runButton = $('run');
+  const toast = $('toast');
+  let lastReport = '';
+  let lastResults = null;
+  let mapLayers = L.layerGroup();
+
+  const map = L.map('map', { zoomControl: true, scrollWheelZoom: true }).setView([27.8934, 85.1508], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+  mapLayers.addTo(map);
+
+  function drawDefaultGeometry() {
+    mapLayers.clearLayers();
+    const aoiLayer = L.geoJSON(DEFAULT_AOI, {
+      style: { color: '#ffbf69', weight: 2, opacity: .95, fillColor: '#ffbf69', fillOpacity: .035, dashArray: '6 5' }
+    }).addTo(mapLayers);
+    const zoneLayer = L.geoJSON(DEFAULT_FIXTURE_ZONE, {
+      style: { color: '#5fe1d0', weight: 2, opacity: .95, fillColor: '#5fe1d0', fillOpacity: .28 }
+    }).addTo(mapLayers);
+    zoneLayer.bindPopup('<strong>Synthetic fixture zone</strong><br>This is not a real flood detection.');
+    fitStudyArea();
+  }
+  function fitStudyArea() {
+    // Always fit the configured study AOI, never the synthetic flood zone or user-supplied map extent.
+    const aoiLayer = L.geoJSON(DEFAULT_AOI);
+    const bounds = aoiLayer.getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds.pad(.14), { animate: false, maxZoom: 13 });
+    setTimeout(() => map.invalidateSize(), 80);
+  }
+  drawDefaultGeometry();
+  window.addEventListener('resize', () => map.invalidateSize());
+  $('fit-aoi').addEventListener('click', fitStudyArea);
+
+  function showToast(message, isError = false) {
+    toast.textContent = message;
+    toast.classList.toggle('error', isError);
+    toast.classList.add('show');
+    window.clearTimeout(showToast.timer);
+    showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 4200);
+  }
+  function safeJson(text, label) {
+    try { return JSON.parse(text); }
+    catch (_) { throw new Error(`${label} is not valid JSON. Open Advanced geometry settings and check the GeoJSON.`); }
+  }
+  function escapeText(value) { return String(value ?? ''); }
+  function setText(id, value) { $(id).textContent = escapeText(value); }
+
+  function renderSteps(history, status, progress) {
+    const host = $('steps');
+    host.replaceChildren();
+    const entries = Array.isArray(history) ? history : [];
+    if (!entries.length) {
+      const messages = [
+        ['Validate study inputs', 'VALIDATING_INPUT'],
+        ['Run controlled fixture analysis', 'DEMO_FIXTURE'],
+        ['Build connectivity summary', 'CONNECTIVITY_ANALYSIS'],
+        ['Generate situation report', 'GENERATING_REPORT']
+      ];
+      messages.forEach((item, i) => {
+        const row = document.createElement('div'); row.className = `step ${i === 0 ? 'active' : ''}`;
+        const marker = document.createElement('span'); marker.className = 'step-marker'; marker.textContent = String(i + 1);
+        const text = document.createElement('span'); text.textContent = item[0]; row.append(marker, text); host.append(row);
+      });
+      return;
     }
-  } catch (error) { status.textContent = `FAILED: ${error.message}`; }
-};
+    entries.forEach((entry, i) => {
+      const row = document.createElement('div'); row.className = 'step';
+      const normalized = String(entry.status || '').toUpperCase();
+      if (normalized === 'COMPLETED' || (Number(entry.progress) >= 1)) row.classList.add('done');
+      else if (i === entries.length - 1) row.classList.add('active');
+      const marker = document.createElement('span'); marker.className = 'step-marker'; marker.textContent = row.classList.contains('done') ? '\u2713' : String(i + 1).padStart(2, '0');
+      const text = document.createElement('span'); text.textContent = `${entry.status || 'STEP'} \u00b7 ${entry.step || 'processing'}`;
+      row.append(marker, text); host.append(row);
+    });
+    const pct = Math.max(0, Math.min(100, Math.round(Number(progress || 0) * 100)));
+    $('progress-fill').style.width = `${pct}%`;
+    setText('progress-label', `${pct}% complete`);
+    if (String(status || '').toUpperCase() === 'FAILED') $('progress-fill').style.background = 'var(--red)';
+    else $('progress-fill').style.background = 'linear-gradient(90deg, var(--cyan-strong), var(--blue))';
+  }
+
+  function displayResultCounts(results) {
+    const r = results && typeof results === 'object' ? results : {};
+    const infra = r.infrastructure && typeof r.infrastructure === 'object' ? r.infrastructure : {};
+    setText('zones-value', r.flood_zone_count ?? (Array.isArray(r.flood_zones) ? r.flood_zones.length : '\u2014'));
+    setText('buildings-value', Array.isArray(infra.affected_buildings) ? infra.affected_buildings.length : (infra.affected_buildings ?? '\u2014'));
+    setText('roads-value', Array.isArray(infra.affected_roads) ? infra.affected_roads.length : (infra.affected_roads ?? '\u2014'));
+  }
+
+  async function readJson(response) {
+    let payload;
+    try { payload = await response.json(); }
+    catch (_) { throw new Error(`API returned a non-JSON response (HTTP ${response.status}). Check that RescueX API is running.`); }
+    if (!response.ok) {
+      const detail = typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail || payload);
+      throw new Error(detail || `Request failed with HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  function renderRunStatus(run) {
+    const status = String(run.status || 'UNKNOWN').toUpperCase();
+    const mode = String(run.execution_mode || 'UNKNOWN').toUpperCase();
+    const failed = status === 'FAILED' || status === 'PARTIALLY_COMPLETED';
+    $('run-badge').className = `status-badge ${failed ? 'warn' : ''}`;
+    setText('run-badge', failed ? status.replaceAll('_', ' ') : 'DEMO FIXTURE');
+    setText('status', `${status.replaceAll('_', ' ')} \u00b7 ${run.current_step || 'Run response received'} \u00b7 ${mode === 'FIXTURE' ? 'DEMO ONLY \u2014 NOT A REAL SATELLITE RESULT' : 'REAL MODE REQUIRES VERIFIED INPUTS'}`);
+    setText('run-id-label', run.run_id ? `RUN ${String(run.run_id).slice(0, 8).toUpperCase()}` : 'NO RUN ID');
+    setText('classification', failed ? 'RUN INCOMPLETE \u2014 DO NOT INTERPRET AS A REAL RESULT' : 'DEVELOPMENT FIXTURE \u2014 NOT A REAL SATELLITE RESULT');
+    $('classification').style.color = failed ? 'var(--red)' : 'var(--muted)';
+  }
+
+  function renderReturnedFloodLayer(geojson) {
+    // Keep the study-area extent fixed. Adding the returned fixture must never zoom the map to the flood polygon.
+    if (!geojson) return;
+    try {
+      const layer = L.geoJSON(geojson, {
+        style: { color: '#5fe1d0', weight: 2, opacity: .95, fillColor: '#5fe1d0', fillOpacity: .25 }
+      });
+      layer.bindPopup('<strong>Synthetic fixture zone</strong><br>Not a real flood detection.');
+      layer.addTo(mapLayers);
+    } catch (error) {
+      console.warn('The API flood layer could not be drawn:', error);
+      showToast('Run completed, but the returned geometry could not be drawn on the map.', true);
+    }
+    fitStudyArea();
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (runButton.disabled) return;
+    const mode = $('mode').value;
+    if (mode !== 'FIXTURE') {
+      showToast('Real inference is blocked until preprocessing compatibility is confirmed.', true);
+      return;
+    }
+    let aoi, fixtureZone;
+    try {
+      aoi = safeJson($('aoi').value, 'Study-area AOI');
+      fixtureZone = safeJson($('zone').value, 'Synthetic fixture zone');
+      if (!aoi || !['Polygon', 'MultiPolygon'].includes(aoi.type)) throw new Error('Study-area AOI must be a GeoJSON Polygon or MultiPolygon geometry.');
+      if (!fixtureZone || !['Polygon', 'MultiPolygon'].includes(fixtureZone.type)) throw new Error('Fixture zone must be a GeoJSON Polygon or MultiPolygon geometry.');
+    } catch (error) {
+      setText('status', error.message); showToast(error.message, true); return;
+    }
+
+    runButton.disabled = true;
+    runButton.innerHTML = '<span>\u25cc</span> Processing fixture\u2026';
+    setText('status', 'Submitting fixture run to the local RescueX API\u2026');
+    $('run-badge').className = 'status-badge'; setText('run-badge', 'RUNNING');
+    $('progress-fill').style.width = '4%'; setText('progress-label', 'Submitting');
+    $('results').textContent = 'Waiting for API response\u2026';
+    $('report').textContent = 'Generating situation report\u2026';
+    try {
+      const body = {
+        aoi,
+        event_date: $('date').value,
+        flood_zones: [fixtureZone],
+        buildings: [], roads: [], bridges: [], settlements: [], destinations: [],
+        execution_mode: 'FIXTURE',
+        source_manifest: {
+          execution_mode: 'FIXTURE',
+          case_study: 'trishuli_2026',
+          fixture_notice: 'Synthetic flood-zone geometry; not a real satellite result',
+          model_compatibility: 'INDETERMINATE'
+        }
+      };
+      const runResponse = await fetch('/api/pipeline/runs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      const run = await readJson(runResponse);
+      lastResults = run.results || run.errors || {};
+      setText('results', JSON.stringify({ run_id: run.run_id, status: run.status, execution_mode: run.execution_mode, results: run.results, errors: run.errors, warnings: run.warnings }, null, 2));
+      displayResultCounts(run.results || {});
+      renderRunStatus(run);
+      renderSteps(run.history, run.status, run.progress);
+      mapLayers.clearLayers();
+      L.geoJSON(DEFAULT_AOI, { style: { color: '#ffbf69', weight: 2, opacity: .95, fillColor: '#ffbf69', fillOpacity: .035, dashArray: '6 5' } }).addTo(mapLayers);
+      const layerResponse = await fetch(`/api/pipeline/runs/${encodeURIComponent(run.run_id)}/layers`);
+      const mapData = await readJson(layerResponse);
+      if (mapData.classification) setText('classification', mapData.classification);
+      renderReturnedFloodLayer(mapData.layers && mapData.layers.flood_zones);
+
+      const reportResponse = await fetch(`/api/pipeline/runs/${encodeURIComponent(run.run_id)}/report`);
+      const reportData = await readJson(reportResponse);
+      lastReport = reportData.report || 'The API returned no report text.';
+      setText('report', lastReport);
+      if (String(run.status).toUpperCase() === 'FAILED' || String(run.status).toUpperCase() === 'PARTIALLY_COMPLETED') {
+        showToast('Run did not complete fully. Review the status and structured output.', true);
+      } else {
+        showToast('Fixture workflow returned successfully. This is not a real satellite flood result.');
+      }
+    } catch (error) {
+      setText('status', `Request failed: ${error.message}`);
+      setText('classification', 'NO VERIFIED RUN RESULT');
+      $('run-badge').className = 'status-badge warn'; setText('run-badge', 'REQUEST FAILED');
+      setText('results', JSON.stringify({ error: error.message }, null, 2));
+      setText('report', 'No report available because the API request failed. Check the local RescueX server terminal.');
+      showToast(error.message, true);
+    } finally {
+      runButton.disabled = false;
+      runButton.innerHTML = '<span>\u25b6</span> Run demo workflow';
+      setTimeout(() => map.invalidateSize(), 80);
+    }
+  });
+
+  $('reset-geometry').addEventListener('click', () => {
+    $('aoi').value = JSON.stringify(DEFAULT_AOI);
+    $('zone').value = JSON.stringify(DEFAULT_FIXTURE_ZONE);
+    $('date').value = '2026-08-26';
+    drawDefaultGeometry();
+    showToast('Study area and synthetic fixture defaults restored.');
+  });
+  $('copy-report').addEventListener('click', async () => {
+    const text = lastReport || $('report').textContent;
+    try { await navigator.clipboard.writeText(text); showToast('Situation report copied.'); }
+    catch (_) { showToast('Clipboard access was blocked by the browser.', true); }
+  });
+  $('copy-results').addEventListener('click', async () => {
+    const text = $('results').textContent;
+    try { await navigator.clipboard.writeText(text); showToast('Structured JSON copied.'); }
+    catch (_) { showToast('Clipboard access was blocked by the browser.', true); }
+  });
+})();
 </script>
 </body>
 </html>
